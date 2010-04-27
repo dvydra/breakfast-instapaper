@@ -7,12 +7,14 @@ import BeautifulSoup
 import logging
 import os
 import urllib
+import re
+
 class PageHandler(webapp.RequestHandler):
     def get(self):
         soup = self.get_page_body()
         links = self.get_links(soup)
         heading = self.get_heading(soup)
-        send_response(links, heading)
+        self.send_response(links, heading)
 
     def get_page_body(self):
         pass        
@@ -20,19 +22,16 @@ class PageHandler(webapp.RequestHandler):
         pass
     def get_heading(self, soup):
         pass
+    def parse_story(self, story):
+        pass
         
     def send_response(self, links, heading):
         articles = []
         for link in links:
-            linktext = link.string
-            url = link['href']
-            byline = unicode(link.nextSibling).strip()
-            articles.append({
-                'url': url,
-                'byline': byline,
-                'linktext': linktext,
-                }
-            )
+            article = self.parse_story(link)
+            if article:
+                articles.append(article)
+
         template_values = {'heading': heading, 'articles': articles}
         
         path = os.path.join(os.path.dirname(__file__), 'list.html')
@@ -47,6 +46,38 @@ class PageHandler(webapp.RequestHandler):
            )
         self.response.out.write("Sent %d articles to instapaper" % len(articles))        
 
+class NYTimesTodaysPaperHandler(PageHandler):
+    def get_page_body(self):
+        return BeautifulSoup.BeautifulSoup(
+            urlfetch.fetch(url='http://www.nytimes.com/pages/todayspaper/index.html').content
+        )
+
+    def get_links(self, soup):
+        return soup.findAll('div', {'class': re.compile('story$|story headline')})
+
+    def get_heading(self, soup):
+        return soup.findAll('div', {'id':'columnistNameHdrInfo'})[0].h3.string.replace('\n',' ')
+
+    def parse_story(self, story):
+        link = story.a
+        linktext = link.string
+        url = link['href']
+        byline = ""
+        if story and linktext:
+            try:
+                #works for most things in the main block
+                byline = link.nextSibling.nextSibling.string.strip()
+            except AttributeError:
+                try:
+                    #works for the front page block
+                    byline = story.find('div', {'class':'byline'}).string
+                except AttributeError:
+                    pass #give up
+            return {
+                'url': url,
+                'byline': byline,
+                'linktext': linktext,
+            }        
 class BreakfastPoliticsHandler(PageHandler):
     def get_page_body(self):
         return BeautifulSoup.BeautifulSoup(urlfetch.fetch(url='http://www.breakfastpolitics.com').content)
@@ -56,6 +87,16 @@ class BreakfastPoliticsHandler(PageHandler):
 
     def get_heading(self, soup):
         return soup.findAll('h2', {'class':'date-header'})[0].string
+
+    def parse_story(self, story):
+        linktext = story.string
+        url = story['href']
+        byline = unicode(story.nextSibling).strip()
+        return {
+            'url': url,
+            'byline': byline,
+            'linktext': linktext,
+        }
 
 class LoadWorkerHandler(webapp.RequestHandler):
     def post(self):
@@ -78,6 +119,7 @@ class LoadWorkerHandler(webapp.RequestHandler):
 def main():
     application = webapp.WSGIApplication([
         ('/breakfast', BreakfastPoliticsHandler),
+        ('/nytimes', NYTimesTodaysPaperHandler),
         ('/load-worker-dfsgylsdfgkjdfhlgjkdfdfgjfdslg', LoadWorkerHandler),        
         ],
         debug=True)
