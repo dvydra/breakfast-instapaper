@@ -7,11 +7,11 @@ import BeautifulSoup
 import logging
 import os
 import urllib
-
-class MainHandler(webapp.RequestHandler):
+class PageHandler(webapp.RequestHandler):
     def get(self):
-        soup = BeautifulSoup.BeautifulSoup(urlfetch.fetch(url='http://www.breakfastpolitics.com').content)
-        links = soup.findAll('div', {'class':'entry-content'})[0].findAll('a')
+        pass
+        
+    def send_response(self, links, heading):
         articles = []
         for link in links:
             linktext = link.string
@@ -23,7 +23,7 @@ class MainHandler(webapp.RequestHandler):
                 'linktext': linktext,
                 }
             )
-        template_values = {'articles': articles}
+        template_values = {'heading': heading, 'articles': articles}
         
         path = os.path.join(os.path.dirname(__file__), 'list.html')
         self.response.out.write(template.render(path, template_values))
@@ -35,7 +35,14 @@ class MainHandler(webapp.RequestHandler):
                url='/load-worker-dfsgylsdfgkjdfhlgjkdfdfgjfdslg', 
                params={'url': url}
            )
-        self.response.out.write("Sent %d articles to instapaper" % len(articles))
+        self.response.out.write("Sent %d articles to instapaper" % len(articles))        
+
+class BreakfastPoliticsHandler(PageHandler):
+    def get(self):
+        soup = BeautifulSoup.BeautifulSoup(urlfetch.fetch(url='http://www.breakfastpolitics.com').content)
+        heading = soup.findAll('h2', {'class':'date-header'})[0].string
+        links = soup.findAll('div', {'class':'entry-content'})[0].findAll('a')
+        self.send_response(links, heading)
         
 class LoadWorkerHandler(webapp.RequestHandler):
     def post(self):
@@ -57,7 +64,7 @@ class LoadWorkerHandler(webapp.RequestHandler):
 
 def main():
     application = webapp.WSGIApplication([
-        ('/', MainHandler),
+        ('/breakfast', BreakfastPoliticsHandler),
         ('/load-worker-dfsgylsdfgkjdfhlgjkdfdfgjfdslg', LoadWorkerHandler),        
         ],
         debug=True)

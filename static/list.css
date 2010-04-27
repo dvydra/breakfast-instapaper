@@ -1,0 +1,66 @@
+body {
+	margin: 64px;
+	font-family: "lucida grande", verdana, lucida, sans-serif;
+	font-size: 8pt;
+}
+
+li {
+	padding-bottom: 4px;
+	line-height: 1.5em;
+	text-align: justify;
+}
+
+p {
+	text-align: justify;
+	line-height: 140%;
+
+}
+acronym {
+	font-style: normal;
+	border-bottom: 1px dotted #ddd;
+}
+
+code, pre {
+	font-family: courier, monospace;
+	color: green;
+}	
+
+#bottle {
+	width: 900px;
+}
+
+
+#playlist {
+	border: 1px solid #666666;
+}
+
+
+#playlist td {
+	font-family: "lucida grande", verdana, sans-serif;
+	font-size: 8pt;
+	padding: 3px 8px;
+	border-left: 1px solid #D9D9D9;
+}
+
+#playlist tr.selected td {
+	background-color: #3d80df;
+	color: #ffffff;
+	font-weight: bold;
+}
+
+#playlist {
+	border: 1px solid #666666;
+}
+
+#playlist tbody tr td {
+	font-family: "lucida grande", verdana, sans-serif;
+	font-size: 8pt;
+	padding: 3px 8px;
+	border-left: 1px solid #D9D9D9;
+}
+
+#playlist tbody tr.selected td {
+	background-color: #3d80df;
+	color: #000000;
+	font-weight: bold;
+}
