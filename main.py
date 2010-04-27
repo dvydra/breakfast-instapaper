@@ -100,6 +100,31 @@ class BreakfastPoliticsHandler(PageHandler):
             'linktext': linktext,
         }
 
+class GuardianHandler(PageHandler):
+    def get_page_body(self):
+        return BeautifulSoup.BeautifulSoup(urlfetch.fetch(url='http://www.guardian.co.uk/theguardian').content)
+
+    def get_links(self, soup):
+        li_list = soup.findAll('li',{'class':'normal'})
+        links = []
+        for li in li_list:
+            if li and li.h3 and li.h3.a:
+                links.append(li.h3.a)
+        return links
+
+    def get_heading(self, soup):
+        return soup.findAll('h2')[3].string
+
+    def parse_story(self, story):
+        linktext = story.string
+        url = story['href']
+        byline = ""
+        return {
+            'url': url,
+            'byline': byline,
+            'linktext': linktext,
+        }
+
 class LoadWorkerHandler(webapp.RequestHandler):
     def post(self):
         article_url = self.request.get('url')
@@ -122,6 +147,7 @@ def main():
     application = webapp.WSGIApplication([
         ('/breakfast', BreakfastPoliticsHandler),
         ('/nytimes', NYTimesTodaysPaperHandler),
+        ('/guardian', GuardianHandler),        
         ('/load-worker-dfsgylsdfgkjdfhlgjkdfdfgjfdslg', LoadWorkerHandler),        
         ],
         debug=True)
