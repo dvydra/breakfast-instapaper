@@ -9,6 +9,16 @@ import os
 import urllib
 class PageHandler(webapp.RequestHandler):
     def get(self):
+        soup = self.get_page_body()
+        links = self.get_links(soup)
+        heading = self.get_heading(soup)
+        send_response(links, heading)
+
+    def get_page_body(self):
+        pass        
+    def get_links(self, soup):
+        pass
+    def get_heading(self, soup):
         pass
         
     def send_response(self, links, heading):
@@ -38,12 +48,15 @@ class PageHandler(webapp.RequestHandler):
         self.response.out.write("Sent %d articles to instapaper" % len(articles))        
 
 class BreakfastPoliticsHandler(PageHandler):
-    def get(self):
-        soup = BeautifulSoup.BeautifulSoup(urlfetch.fetch(url='http://www.breakfastpolitics.com').content)
-        heading = soup.findAll('h2', {'class':'date-header'})[0].string
-        links = soup.findAll('div', {'class':'entry-content'})[0].findAll('a')
-        self.send_response(links, heading)
-        
+    def get_page_body(self):
+        return BeautifulSoup.BeautifulSoup(urlfetch.fetch(url='http://www.breakfastpolitics.com').content)
+
+    def get_links(self, soup):
+        return soup.findAll('div', {'class':'entry-content'})[0].findAll('a')
+
+    def get_heading(self, soup):
+        return soup.findAll('h2', {'class':'date-header'})[0].string
+
 class LoadWorkerHandler(webapp.RequestHandler):
     def post(self):
         article_url = self.request.get('url')
