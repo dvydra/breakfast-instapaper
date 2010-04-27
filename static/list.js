@@ -12,6 +12,23 @@ $(document).ready(function() {
             });
         }
     });
+    $('#password').blur(function() {
+        $.post('/validate', {username: $('#username').val(), password: $('#password').val()}, function(data) {
+          var text = ""
+          if (data == "200") {
+              data = "ok";
+              text = "Instapaper login ok!";
+          } else if (data == "403") {
+              data = "authfail";
+              text = "Instapaper login failed, check your username and password";
+          } else {
+              data = "fail";
+              text = "Instapaper fail?";
+          }
+          $('#result').attr("class", data);
+          $('#result').html(text);
+        });
+    });
 });
 
 function hasClass(obj) {

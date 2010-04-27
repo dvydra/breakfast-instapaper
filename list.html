@@ -8,9 +8,16 @@
 </head>
 <body onload="stripe('playlist', '#fff', '#edf3fe');">
 <div id="bottle">
-    <h1>Breakfast politics -> Instapaper</h1>
-    <h2>{{heading}}</h2>
+    <h1>Instapaper bulk news submitter</h1>
     <form action="/breakfast" method="post">
+        <div id="login-form">
+            <div id="result">Enter your Instapaper login:</div>
+            <input type="text" id="username" name="username" />
+            <input type="password" id="password" name="password" />
+            <input type="submit" id="submit-button" value="Post to Instapaper">
+        </div>
+        <h2>{{heading}}</h2>
+        <p></p>
         <table class="playlist" id="playlist" cellspacing="0">
         <tbody>
         {% for a in articles %}
@@ -22,9 +29,10 @@
         {% endfor %}
         </tbody>
         </table>
-        Instapaper username/password:<input type="text" name="username" />
-        <input type="password" name="password" />
-        <p><input type="submit" value="Post to Instapaper"></p>
+        <p />
+        <div id="login-form">
+            <input type="submit" id="submit-button" value="Post to Instapaper">
+        </div>
     </form>
 </div>
 

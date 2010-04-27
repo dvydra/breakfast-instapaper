@@ -24,11 +24,31 @@ code, pre {
 	font-family: courier, monospace;
 	color: green;
 }	
+div #login-form {
+    width: 450px;
+    padding: 10px;
+    background: #dddddd;
+    font-weight: bold;
+}
 
+div #result {
+    width: 400px;
+    padding: 10px;
+    background: #dddddd;
+    font-weight: bold;
+}
+div #result.ok {
+    background: #bbffbb;
+}
+div #result.authfail {
+    background: #ffbbbb;
+}
+div #result.fail {
+    background: red;
+}
 #bottle {
 	width: 900px;
 }
-
 
 #playlist {
 	border: 1px solid #666666;

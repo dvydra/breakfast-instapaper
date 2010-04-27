@@ -79,7 +79,8 @@ class NYTimesTodaysPaperHandler(PageHandler):
                 'url': url,
                 'byline': byline,
                 'linktext': linktext,
-            }        
+            }  
+                  
 class BreakfastPoliticsHandler(PageHandler):
     def get_page_body(self):
         return BeautifulSoup.BeautifulSoup(urlfetch.fetch(url='http://www.breakfastpolitics.com').content)
@@ -88,7 +89,7 @@ class BreakfastPoliticsHandler(PageHandler):
         return soup.findAll('div', {'class':'entry-content'})[0].findAll('a')
 
     def get_heading(self, soup):
-        return soup.findAll('h2', {'class':'date-header'})[0].string
+        return "Breakfast Politics for " + soup.findAll('h2', {'class':'date-header'})[0].string
 
     def parse_story(self, story):
         linktext = story.string
@@ -113,7 +114,7 @@ class GuardianHandler(PageHandler):
         return links
 
     def get_heading(self, soup):
-        return soup.findAll('h2')[3].string
+        return "The Guardian for " + soup.findAll('h2')[3].string
 
     def parse_story(self, story):
         linktext = story.string
@@ -143,11 +144,27 @@ class LoadWorkerHandler(webapp.RequestHandler):
         )
         logging.info("Lodged %s with instapaper. Reponse = %d" % (article_url, instapaper_response.status_code,))
 
+class InstapaperValidationHandler(webapp.RequestHandler):
+    def post(self):
+        form_fields = {
+          "username": self.request.get('username'),
+          "password": self.request.get('password'),
+        }
+        form_data = urllib.urlencode(form_fields)
+        logging.info(form_data)
+        instapaper_response = urlfetch.fetch(
+            url="https://www.instapaper.com/api/authenticate",
+            method=urlfetch.POST,
+            payload=form_data
+        )
+        return self.response.out.write("%d" % (instapaper_response.status_code,))
+
 def main():
     application = webapp.WSGIApplication([
         ('/breakfast', BreakfastPoliticsHandler),
         ('/nytimes', NYTimesTodaysPaperHandler),
-        ('/guardian', GuardianHandler),        
+        ('/guardian', GuardianHandler),
+        ('/validate', InstapaperValidationHandler),
         ('/load-worker-dfsgylsdfgkjdfhlgjkdfdfgjfdslg', LoadWorkerHandler),        
         ],
         debug=True)
