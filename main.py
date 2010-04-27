@@ -158,14 +158,19 @@ class InstapaperValidationHandler(webapp.RequestHandler):
             payload=form_data
         )
         return self.response.out.write("%d" % (instapaper_response.status_code,))
-
+        
+class IndexHandler(webapp.RequestHandler):
+    def get(self):
+        path = os.path.join(os.path.dirname(__file__), 'index.html')
+        self.response.out.write(template.render(path, {}))
 def main():
     application = webapp.WSGIApplication([
         ('/breakfast', BreakfastPoliticsHandler),
         ('/nytimes', NYTimesTodaysPaperHandler),
         ('/guardian', GuardianHandler),
         ('/validate', InstapaperValidationHandler),
-        ('/load-worker-dfsgylsdfgkjdfhlgjkdfdfgjfdslg', LoadWorkerHandler),        
+        ('/load-worker-dfsgylsdfgkjdfhlgjkdfdfgjfdslg', LoadWorkerHandler),
+        ('/', IndexHandler), 
         ],
         debug=True)
     util.run_wsgi_app(application)
