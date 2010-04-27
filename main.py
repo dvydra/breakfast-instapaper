@@ -39,10 +39,12 @@ class PageHandler(webapp.RequestHandler):
         
     def post(self):
         articles = self.request.get_all("articles")
+        username = self.request.get('username')
+        password = self.request.get('password')
         for url in articles:
            taskqueue.add(
                url='/load-worker-dfsgylsdfgkjdfhlgjkdfdfgjfdslg', 
-               params={'url': url}
+               params={'url': url, 'username': username, 'password': password}
            )
         self.response.out.write("Sent %d articles to instapaper" % len(articles))        
 
@@ -108,7 +110,7 @@ class LoadWorkerHandler(webapp.RequestHandler):
           "auto-title": "1"
         }
         form_data = urllib.urlencode(form_fields)
-
+        logging.info(form_data)
         instapaper_response = urlfetch.fetch(
             url= "https://www.instapaper.com/api/add",
             method= urlfetch.POST,
