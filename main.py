@@ -9,14 +9,22 @@ import os
 import urllib
 import re
 
+def render_to_response(response, template_path, context):
+    path = os.path.join(os.path.dirname(__file__), template_path)
+    response.out.write(template.render(path, context))
+    
 class PageHandler(webapp.RequestHandler):
-    def get(self):
-        soup = self.get_page_body()
+    def get(self, path=None):
+        soup, status_code = self.get_page_body(path)
         links = self.get_links(soup)
-        heading = self.get_heading(soup)
-        self.send_response(links, heading)
+        if status_code == 200 and links:
+            heading = self.get_heading(soup)
+            self.send_response(links, heading)
+        else:            
+            self.error(404)
+            render_to_response(self.response, '404.html', {})
 
-    def get_page_body(self):
+    def get_page_body(self, path=None):
         pass        
     def get_links(self, soup):
         pass
@@ -32,10 +40,7 @@ class PageHandler(webapp.RequestHandler):
             if article:
                 articles.append(article)
 
-        template_values = {'heading': heading, 'articles': articles}
-        
-        path = os.path.join(os.path.dirname(__file__), 'list.html')
-        self.response.out.write(template.render(path, template_values))
+        render_to_response(self.response, 'list.html', {'heading': heading, 'articles': articles})
         
     def post(self):
         articles = self.request.get_all("articles")
@@ -49,10 +54,13 @@ class PageHandler(webapp.RequestHandler):
         self.response.out.write("Sent %d articles to instapaper" % len(articles))        
 
 class NYTimesTodaysPaperHandler(PageHandler):
-    def get_page_body(self):
-        return BeautifulSoup.BeautifulSoup(
-            urlfetch.fetch(url='http://www.nytimes.com/pages/todayspaper/index.html').content
+    def get_page_body(self, path):
+        response = urlfetch.fetch(
+            url='http://www.nytimes.com/pages/todayspaper/index.html'
         )
+        soup = BeautifulSoup.BeautifulSoup(response.content)
+        status_code = response.status_code
+        return soup, status_code      
 
     def get_links(self, soup):
         return soup.findAll('div', {'class': re.compile('story$|story headline')})
@@ -77,13 +85,22 @@ class NYTimesTodaysPaperHandler(PageHandler):
                     pass #give up
             return {
                 'url': url,
-                'byline': byline,
+                'byline': self.trim_by(byline),
                 'linktext': linktext,
             }  
-                  
+    def trim_by(self, string):
+        if string.startswith('By'):
+            string = string[3:]
+        return string
+       
 class BreakfastPoliticsHandler(PageHandler):
-    def get_page_body(self):
-        return BeautifulSoup.BeautifulSoup(urlfetch.fetch(url='http://www.breakfastpolitics.com').content)
+    def get_page_body(self, path):
+        response = urlfetch.fetch(
+            url='http://www.breakfastpolitics.com'
+        )
+        soup = BeautifulSoup.BeautifulSoup(response.content)
+        status_code = response.status_code
+        return soup, status_code  
 
     def get_links(self, soup):
         return soup.findAll('div', {'class':'entry-content'})[0].findAll('a')
@@ -92,18 +109,29 @@ class BreakfastPoliticsHandler(PageHandler):
         return "Breakfast Politics for " + soup.findAll('h2', {'class':'date-header'})[0].string
 
     def parse_story(self, story):
-        linktext = story.string
+        linktext = self.trim_commas(story.string)
         url = story['href']
-        byline = unicode(story.nextSibling).strip()
+        byline = unicode(self.trim_commas(story.nextSibling)).strip()
         return {
             'url': url,
             'byline': byline,
             'linktext': linktext,
         }
+    def trim_commas(self, string):
+        if string.startswith(','):
+            string = string[2:]
+        if string.endswith(','):
+            string = string[:-1]
+        return string
 
 class GuardianHandler(PageHandler):
-    def get_page_body(self):
-        return BeautifulSoup.BeautifulSoup(urlfetch.fetch(url='http://www.guardian.co.uk/theguardian').content)
+    def get_page_body(self, path):
+        response = urlfetch.fetch(
+            url='http://www.guardian.co.uk/theguardian'
+        )
+        soup = BeautifulSoup.BeautifulSoup(response.content)
+        status_code = response.status_code
+        return soup, status_code    
 
     def get_links(self, soup):
         li_list = soup.findAll('li',{'class':'normal'})
@@ -136,7 +164,6 @@ class LoadWorkerHandler(webapp.RequestHandler):
           "auto-title": "1"
         }
         form_data = urllib.urlencode(form_fields)
-        logging.info(form_data)
         instapaper_response = urlfetch.fetch(
             url= "https://www.instapaper.com/api/add",
             method= urlfetch.POST,
@@ -151,24 +178,50 @@ class InstapaperValidationHandler(webapp.RequestHandler):
           "password": self.request.get('password'),
         }
         form_data = urllib.urlencode(form_fields)
-        logging.info(form_data)
         instapaper_response = urlfetch.fetch(
             url="https://www.instapaper.com/api/authenticate",
             method=urlfetch.POST,
             payload=form_data
         )
         return self.response.out.write("%d" % (instapaper_response.status_code,))
+
+class DeliciousHandler(PageHandler):
+    def get_page_body(self, path):
+        response = urlfetch.fetch(
+            url='http://feeds.delicious.com/v2/rss/%s?count=50' % path
+        )
+        soup = BeautifulSoup.BeautifulStoneSoup(response.content)
+        status_code = response.status_code
+        return soup, status_code
+
+    def get_links(self, soup):
+        return soup.findAll('item')
+
+    def get_heading(self, soup):
+        return soup.findAll('title')[0].string + " " + soup.findAll('description')[0].string
+
+    def parse_story(self, story):
+        linktext = story.title.string
+        url = story.link.string
+        byline = story.find('dc:creator').string
+        return {
+            'url': url,
+            'byline': byline,
+            'linktext': linktext,
+        }
         
 class IndexHandler(webapp.RequestHandler):
     def get(self):
         path = os.path.join(os.path.dirname(__file__), 'index.html')
         self.response.out.write(template.render(path, {}))
+
 def main():
     application = webapp.WSGIApplication([
         ('/breakfast', BreakfastPoliticsHandler),
         ('/nytimes', NYTimesTodaysPaperHandler),
         ('/guardian', GuardianHandler),
         ('/validate', InstapaperValidationHandler),
+        ('/delicious/(.*)', DeliciousHandler),
         ('/load-worker-dfsgylsdfgkjdfhlgjkdfdfgjfdslg', LoadWorkerHandler),
         ('/', IndexHandler), 
         ],
@@ -177,3 +230,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
