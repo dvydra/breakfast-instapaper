@@ -198,7 +198,7 @@ class DeliciousHandler(PageHandler):
         return soup.findAll('item')
 
     def get_heading(self, soup):
-        return soup.findAll('title')[0].string + " " + soup.findAll('description')[0].string
+        return "Delicious: " + soup.findAll('description')[0].string
 
     def parse_story(self, story):
         linktext = story.title.string
