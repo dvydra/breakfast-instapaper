@@ -12,7 +12,20 @@ import re
 def render_to_response(response, template_path, context):
     path = os.path.join(os.path.dirname(__file__), template_path)
     response.out.write(template.render(path, context))
-    
+
+def validate_instapaper_account(username, password):
+    form_fields = {
+      "username": username,
+      "password": password,
+    }
+    form_data = urllib.urlencode(form_fields)
+    instapaper_response = urlfetch.fetch(
+        url="https://www.instapaper.com/api/authenticate",
+        method=urlfetch.POST,
+        payload=form_data
+    )
+    return instapaper_response
+        
 class PageHandler(webapp.RequestHandler):
     def get(self, path=None):
         soup, status_code = self.get_page_body(path)
@@ -46,12 +59,16 @@ class PageHandler(webapp.RequestHandler):
         articles = self.request.get_all("articles")
         username = self.request.get('username')
         password = self.request.get('password')
-        for url in articles:
-           taskqueue.add(
-               url='/load-worker-dfsgylsdfgkjdfhlgjkdfdfgjfdslg', 
-               params={'url': url, 'username': username, 'password': password}
-           )
-        self.response.out.write("Sent %d articles to instapaper" % len(articles))        
+        response = validate_instapaper_account(username, password)
+        if response.status_code == 200:
+            for url in articles:
+               taskqueue.add(
+                   url='/load-worker-dfsgylsdfgkjdfhlgjkdfdfgjfdslg', 
+                   params={'url': url, 'username': username, 'password': password}
+               )
+            self.response.out.write("Sent %d articles to instapaper <br/><a href='/'>Back to homepage</a>" % len(articles))
+        else:
+            self.response.out.write("Instapaper login failed, check your details.<br/><a href='/'>Back to homepage</a>")                
 
 class NYTimesTodaysPaperHandler(PageHandler):
     def get_page_body(self, path):
@@ -109,20 +126,26 @@ class BreakfastPoliticsHandler(PageHandler):
         return "Breakfast Politics for " + soup.findAll('h2', {'class':'date-header'})[0].string
 
     def parse_story(self, story):
-        linktext = self.trim_commas(story.string)
-        url = story['href']
-        byline = unicode(self.trim_commas(story.nextSibling)).strip()
-        return {
-            'url': url,
-            'byline': byline,
-            'linktext': linktext,
-        }
+        if story.string:
+            linktext = self.trim_commas(story.string)
+            url = story['href']
+            byline = unicode(self.trim_commas(story.nextSibling)).strip()
+            return {
+                'url': url,
+                'byline': byline,
+                'linktext': linktext,
+            }
+
     def trim_commas(self, string):
-        if string.startswith(','):
-            string = string[2:]
-        if string.endswith(','):
-            string = string[:-1]
-        return string
+        logging.info(string)
+        if string != None:
+            if string.startswith(','):
+                string = string[2:]
+            if string.endswith(','):
+                string = string[:-1]
+            return string
+        else:
+            return string
 
 class GuardianHandler(PageHandler):
     def get_page_body(self, path):
@@ -173,18 +196,9 @@ class LoadWorkerHandler(webapp.RequestHandler):
 
 class InstapaperValidationHandler(webapp.RequestHandler):
     def post(self):
-        form_fields = {
-          "username": self.request.get('username'),
-          "password": self.request.get('password'),
-        }
-        form_data = urllib.urlencode(form_fields)
-        instapaper_response = urlfetch.fetch(
-            url="https://www.instapaper.com/api/authenticate",
-            method=urlfetch.POST,
-            payload=form_data
-        )
+        instapaper_response = validate_instapaper_account(self.request.get('username'),self.request.get('password'))
         return self.response.out.write("%d" % (instapaper_response.status_code,))
-
+    
 class DeliciousHandler(PageHandler):
     def get_page_body(self, path):
         response = urlfetch.fetch(

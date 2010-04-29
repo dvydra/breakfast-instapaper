@@ -21,9 +21,6 @@ $(document).ready(function() {
           } else if (data == "403") {
               data = "authfail";
               text = "Instapaper login failed, check your username and password";
-          } else {
-              data = "fail";
-              text = "Instapaper fail?";
           }
           $('#result').attr("class", data);
           $('#result').html(text);
