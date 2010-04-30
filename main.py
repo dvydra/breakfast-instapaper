@@ -8,6 +8,7 @@ import logging
 import os
 import urllib
 import re
+import datetime
 
 def render_to_response(response, template_path, context):
     path = os.path.join(os.path.dirname(__file__), template_path)
@@ -31,7 +32,7 @@ class PageHandler(webapp.RequestHandler):
         soup, status_code = self.get_page_body(path)
         links = self.get_links(soup)
         if status_code == 200 and links:
-            heading = self.get_heading(soup)
+            heading = self.get_heading(soup, path)
             self.send_response(links, heading)
         else:            
             self.error(404)
@@ -41,7 +42,7 @@ class PageHandler(webapp.RequestHandler):
         pass        
     def get_links(self, soup):
         pass
-    def get_heading(self, soup):
+    def get_heading(self, soup, path):
         pass
     def parse_story(self, story):
         pass
@@ -82,7 +83,7 @@ class NYTimesTodaysPaperHandler(PageHandler):
     def get_links(self, soup):
         return soup.findAll('div', {'class': re.compile('story$|story headline')})
 
-    def get_heading(self, soup):
+    def get_heading(self, soup, path):
         return soup.findAll('div', {'id':'columnistNameHdrInfo'})[0].h3.string.replace('\n',' ')
 
     def parse_story(self, story):
@@ -124,7 +125,7 @@ class BreakfastPoliticsHandler(PageHandler):
     def get_links(self, soup):
         return soup.findAll('div', {'class':'entry-content'})[0].findAll('a')
 
-    def get_heading(self, soup):
+    def get_heading(self, soup, path):
         return "Breakfast Politics for " + soup.findAll('h2', {'class':'date-header'})[0].string
 
     def parse_story(self, story):
@@ -150,12 +151,19 @@ class BreakfastPoliticsHandler(PageHandler):
 
 class GuardianHandler(PageHandler):
     def get_page_body(self, path):
+        sunday = datetime.datetime.now().weekday() == 6
+        paper = "theobserver" if sunday else "theguardian"
+
+        if path:
+            url='http://www.guardian.co.uk/%s/%s' % (paper, path)
+        else:
+            url='http://www.guardian.co.uk/%s' % (paper)
         response = urlfetch.fetch(
-            url='http://www.guardian.co.uk/theguardian'
+            url=url
         )
         soup = BeautifulSoup.BeautifulSoup(response.content)
         status_code = response.status_code
-        return soup, status_code    
+        return soup, status_code   
 
     def get_links(self, soup):
         li_list = soup.findAll('li',{'class':'normal'})
@@ -165,8 +173,14 @@ class GuardianHandler(PageHandler):
                 links.append(li.h3.a)
         return links
 
-    def get_heading(self, soup):
-        return "The Guardian for " + soup.findAll('h2')[3].string
+    def get_heading(self, soup, path):
+        sunday = datetime.datetime.now().weekday() == 6
+        paper = "The Observer" if sunday else "The Guardian"
+        if path:
+            heading = "%s %s: %s" % (paper, path.title(), soup.findAll('h2')[3].string)
+        else:
+            heading = "%s %s" % (paper, soup.findAll('h2')[3].string)
+        return heading
 
     def parse_story(self, story):
         linktext = story.string
@@ -202,6 +216,8 @@ class InstapaperValidationHandler(webapp.RequestHandler):
     
 class DeliciousHandler(PageHandler):
     def get_page_body(self, path):
+        if not path:
+            path = "popular"
         response = urlfetch.fetch(
             url='http://feeds.delicious.com/v2/rss/%s?count=50' % path
         )
@@ -212,7 +228,7 @@ class DeliciousHandler(PageHandler):
     def get_links(self, soup):
         return soup.findAll('item')
 
-    def get_heading(self, soup):
+    def get_heading(self, soup, path):
         return "Delicious: " + soup.findAll('description')[0].string
 
     def parse_story(self, story):
@@ -234,8 +250,10 @@ def main():
     application = webapp.WSGIApplication([
         ('/breakfast', BreakfastPoliticsHandler),
         ('/nytimes', NYTimesTodaysPaperHandler),
+        ('/guardian/(.*)', GuardianHandler),
         ('/guardian', GuardianHandler),
         ('/validate', InstapaperValidationHandler),
+        ('/delicious', DeliciousHandler),
         ('/delicious/(.*)', DeliciousHandler),
         ('/load-worker-dfsgylsdfgkjdfhlgjkdfdfgjfdslg', LoadWorkerHandler),
         ('/', IndexHandler), 
