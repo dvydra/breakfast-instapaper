@@ -89,7 +89,6 @@ class NYTimesTodaysPaperHandler(PageHandler):
         link = story.a
         linktext = link.string
         url = link['href']
-        byline = ""
         if story and linktext:
             try:
                 #works for most things in the main block
@@ -99,12 +98,15 @@ class NYTimesTodaysPaperHandler(PageHandler):
                     #works for the front page block
                     byline = story.find('div', {'class':'byline'}).string
                 except AttributeError:
-                    pass #give up
+                    byline = ""
+            if byline:
+                byline = self.trim_by(byline)
             return {
                 'url': url,
-                'byline': self.trim_by(byline),
+                'byline': byline,
                 'linktext': linktext,
-            }  
+            }
+
     def trim_by(self, string):
         if string.startswith('By'):
             string = string[3:]
