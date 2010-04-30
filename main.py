@@ -139,7 +139,6 @@ class BreakfastPoliticsHandler(PageHandler):
             }
 
     def trim_commas(self, string):
-        logging.info(string)
         if string != None:
             if string.startswith(','):
                 string = string[2:]
