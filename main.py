@@ -3,6 +3,8 @@ from google.appengine.api.labs import taskqueue
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template
 from google.appengine.ext.webapp import util
+from google.appengine.api import users
+from models import InstapaperLogin
 import BeautifulSoup
 import logging
 import os
@@ -37,7 +39,7 @@ class PageHandler(webapp.RequestHandler):
         else:            
             self.error(404)
             render_to_response(self.response, '404.html', {})
-
+    
     def get_page_body(self, path=None):
         pass        
     def get_links(self, soup):
@@ -46,15 +48,56 @@ class PageHandler(webapp.RequestHandler):
         pass
     def parse_story(self, story):
         pass
+    def get_instapaper_login(self):
+        user = users.get_current_user()
+        instapaper_login = InstapaperLogin.gql("WHERE owner = :owner", owner=user)
+        return instapaper_login.fetch(1)[0]
         
+    def save_instapaper_login(self, username, password, articles):
+        instapaper_login = self.get_instapaper_login()
+        if not instapaper_login:
+            user = users.get_current_user()
+            if user:
+                instapaper_login = InstapaperLogin(
+                    username=username, 
+                    password=password,
+                    article_count=0,
+                    owner=users.get_current_user()
+                )
+                instapaper_login.put()
+        else:
+            instapaper_login.article_count = instapaper_login.article_count + len(articles)
+            instapaper_login.put()
+
     def send_response(self, links, heading):
         articles = []
         for link in links:
             article = self.parse_story(link)
             if article:
                 articles.append(article)
+        user = users.get_current_user()
+        if user:
+            greeting = ("Welcome, %s! (<a href=\"%s\">sign out</a>)" %
+                        (user.nickname(), users.create_logout_url("/")))
+            instapaper_login = self.get_instapaper_login()
+            username = instapaper_login.username
+            password = instapaper_login.password
+            
+        else:
+            greeting = ("<a href=\"%s\">Sign in or register</a>." %
+                        users.create_login_url("/"))
+            username = ""
+            password = ""
 
-        render_to_response(self.response, 'list.html', {'heading': heading, 'articles': articles})
+        self.response.out.write("<html><body>%s</body></html>" % greeting)        
+
+        render_to_response(self.response, 'list.html', {
+            'heading': heading, 
+            'articles': articles, 
+            'greeting': greeting,
+            'username': username,
+            'password': password
+        })
         
     def post(self):
         articles = self.request.get_all("articles")
@@ -62,6 +105,7 @@ class PageHandler(webapp.RequestHandler):
         password = self.request.get('password')
         response = validate_instapaper_account(username, password)
         if response.status_code == 200:
+            self.save_instapaper_login(username, password, articles)
             for url in articles:
                taskqueue.add(
                    url='/load-worker-dfsgylsdfgkjdfhlgjkdfdfgjfdslg', 
@@ -242,7 +286,7 @@ class DeliciousHandler(PageHandler):
         }
         
 class IndexHandler(webapp.RequestHandler):
-    def get(self):
+    def get(self):        
         path = os.path.join(os.path.dirname(__file__), 'index.html')
         self.response.out.write(template.render(path, {}))
 

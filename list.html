@@ -12,9 +12,10 @@
     <form action="/breakfast" method="post">
         <div id="login-form">
             <div id="result">Enter your Instapaper login:</div>
-            <input type="text" id="username" name="username" />
-            <input type="password" id="password" name="password" />
+            <input type="text" id="username" name="username" value="{{username}}"/>
+            <input type="password" id="password" name="password" value="{{password}}"/>
             <input type="submit" id="submit-button" value="Post to Instapaper">
+            <div><small>{{greeting}}</small></div>
         </div>
         <h2>{{heading}}</h2>
         <p></p>
