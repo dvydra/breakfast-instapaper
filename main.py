@@ -252,7 +252,7 @@ class LoadWorkerHandler(webapp.RequestHandler):
             payload= form_data
         )
         logging.info("Lodged %s with instapaper. Reponse = %d" % (article_url, instapaper_response.status_code,))
-
+git 
 class InstapaperValidationHandler(webapp.RequestHandler):
     def post(self):
         instapaper_response = validate_instapaper_account(self.request.get('username'),self.request.get('password'))
@@ -268,6 +268,7 @@ class DeliciousHandler(PageHandler):
         soup = BeautifulSoup.BeautifulStoneSoup(response.content)
         status_code = response.status_code
         return soup, status_code
+        
 
     def get_links(self, soup):
         return soup.findAll('item')
