@@ -51,7 +51,7 @@ class PageHandler(webapp.RequestHandler):
     def get_instapaper_login(self):
         user = users.get_current_user()
         instapaper_login = InstapaperLogin.gql("WHERE owner = :owner", owner=user)
-        return instapaper_login.fetch(1)[0]
+        return instapaper_login.get()
         
     def save_instapaper_login(self, username, password, articles):
         instapaper_login = self.get_instapaper_login()
@@ -76,13 +76,12 @@ class PageHandler(webapp.RequestHandler):
             if article:
                 articles.append(article)
         user = users.get_current_user()
-        if user:
+        instapaper_login = self.get_instapaper_login()
+        if user and instapaper_login:
             greeting = ("Welcome, %s! (<a href=\"%s\">sign out</a>)" %
                         (user.nickname(), users.create_logout_url("/")))
-            instapaper_login = self.get_instapaper_login()
             username = instapaper_login.username
             password = instapaper_login.password
-            
         else:
             greeting = ("<a href=\"%s\">Sign in or register</a>." %
                         users.create_login_url("/"))
@@ -101,8 +100,13 @@ class PageHandler(webapp.RequestHandler):
         
     def post(self):
         articles = self.request.get_all("articles")
-        username = self.request.get('username')
-        password = self.request.get('password')
+        instapaper_login = self.get_instapaper_login()
+        if instapaper_login:
+            username = instapaper_login.username
+            password = instapaper_login.password
+        else:
+            username = self.request.get('username')
+            password = self.request.get('password')
         response = validate_instapaper_account(username, password)
         if response.status_code == 200:
             self.save_instapaper_login(username, password, articles)
@@ -235,28 +239,6 @@ class GuardianHandler(PageHandler):
             'byline': byline,
             'linktext': linktext,
         }
-
-class LoadWorkerHandler(webapp.RequestHandler):
-    def post(self):
-        article_url = self.request.get('url')
-        form_fields = {
-          "username": self.request.get('username'),
-          "password": self.request.get('password'),
-          "url": article_url,
-          "auto-title": "1"
-        }
-        form_data = urllib.urlencode(form_fields)
-        instapaper_response = urlfetch.fetch(
-            url= "https://www.instapaper.com/api/add",
-            method= urlfetch.POST,
-            payload= form_data
-        )
-        logging.info("Lodged %s with instapaper. Reponse = %d" % (article_url, instapaper_response.status_code,))
-
-class InstapaperValidationHandler(webapp.RequestHandler):
-    def post(self):
-        instapaper_response = validate_instapaper_account(self.request.get('username'),self.request.get('password'))
-        return self.response.out.write("%d" % (instapaper_response.status_code,))
     
 class DeliciousHandler(PageHandler):
     def get_page_body(self, path):
@@ -284,6 +266,29 @@ class DeliciousHandler(PageHandler):
             'byline': byline,
             'linktext': linktext,
         }
+        
+class LoadWorkerHandler(webapp.RequestHandler):
+    def post(self):
+        article_url = self.request.get('url')
+        form_fields = {
+          "username": self.request.get('username'),
+          "password": self.request.get('password'),
+          "url": article_url,
+          "auto-title": "1"
+        }
+        logging.error('%s, %s' % (self.request.get('username'), self.request.get('password')))
+        form_data = urllib.urlencode(form_fields)
+        instapaper_response = urlfetch.fetch(
+            url= "https://www.instapaper.com/api/add",
+            method= urlfetch.POST,
+            payload= form_data
+        )
+        logging.info("Lodged %s with instapaper. Reponse = %d" % (article_url, instapaper_response.status_code,))
+
+class InstapaperValidationHandler(webapp.RequestHandler):
+    def post(self):
+        instapaper_response = validate_instapaper_account(self.request.get('username'),self.request.get('password'))
+        return self.response.out.write("%d" % (instapaper_response.status_code,))
         
 class IndexHandler(webapp.RequestHandler):
     def get(self):        
