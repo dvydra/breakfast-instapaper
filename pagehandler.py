@@ -31,11 +31,12 @@ class PageHandler(webapp.RequestHandler):
         pass
     def parse_story(self, story):
         pass
+
     def get_instapaper_login(self):
         user = users.get_current_user()
         instapaper_login = InstapaperLogin.gql("WHERE owner = :owner", owner=user)
         return instapaper_login.get()
-        
+
     def save_instapaper_login(self, username, password, articles):
         instapaper_login = self.get_instapaper_login()
         if not instapaper_login:
@@ -48,9 +49,13 @@ class PageHandler(webapp.RequestHandler):
                     owner=users.get_current_user()
                 )
                 instapaper_login.put()
+                logging.info("created new account for %s" % user.email())
         else:
             instapaper_login.article_count = instapaper_login.article_count + len(articles)
+            instapaper_login.username = username
+            instapaper_login.password = password
             instapaper_login.put()
+            logging.info("updated account for %s, total articles: %s" % (instapaper_login.owner.email(), instapaper_login.article_count) )
 
     def send_response(self, links, heading):
         articles = []
@@ -58,6 +63,7 @@ class PageHandler(webapp.RequestHandler):
             article = self.parse_story(link)
             if article:
                 articles.append(article)
+                
         user = users.get_current_user()
         instapaper_login = self.get_instapaper_login()
         if user and instapaper_login:
@@ -66,12 +72,10 @@ class PageHandler(webapp.RequestHandler):
             username = instapaper_login.username
             password = instapaper_login.password
         else:
-            greeting = ("<a href=\"%s\">Sign in or register</a>." %
+            greeting = ("<a href=\"%s\">Sign in with your google account to save your instapaper details</a>." %
                         users.create_login_url("/"))
             username = ""
             password = ""
-
-        self.response.out.write("<html><body>%s</body></html>" % greeting)        
 
         self.render_to_response(self.response, 'list.html', {
             'heading': heading, 
@@ -83,14 +87,14 @@ class PageHandler(webapp.RequestHandler):
         
     def post(self):
         articles = self.request.get_all("articles")
+        if not articles:
+            return self.response.out.write("You didn't select any articles.<br/><a href='/'>Back to homepage</a>")                
+            
         instapaper_login = self.get_instapaper_login()
-        if instapaper_login:
-            username = instapaper_login.username
-            password = instapaper_login.password
-        else:
-            username = self.request.get('username')
-            password = self.request.get('password')
+        username = self.request.get('username')
+        password = self.request.get('password')
         response = InstapaperValidationHandler().validate_instapaper_account(username, password)
+        
         if response.status_code == 200:
             self.save_instapaper_login(username, password, articles)
             for url in articles:

@@ -24,7 +24,6 @@ class LoadWorkerHandler(webapp.RequestHandler):
           "url": article_url,
           "auto-title": "1"
         }
-        logging.error('submiting instapaper: %s, %s' % (self.request.get('username'), self.request.get('password')))
         form_data = urllib.urlencode(form_fields)
         instapaper_response = urlfetch.fetch(
             url= "https://www.instapaper.com/api/add",
