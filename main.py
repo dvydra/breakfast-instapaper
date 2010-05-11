@@ -5,268 +5,16 @@ from google.appengine.ext.webapp import template
 from google.appengine.ext.webapp import util
 from google.appengine.api import users
 from models import InstapaperLogin
+import pagehandler
+import sitehandlers
 import BeautifulSoup
 import logging
 import os
 import urllib
 import re
 import datetime
+from pagehandler import PageHandler, InstapaperValidationHandler
 
-def render_to_response(response, template_path, context):
-    path = os.path.join(os.path.dirname(__file__), template_path)
-    response.out.write(template.render(path, context))
-
-def validate_instapaper_account(username, password):
-    form_fields = {
-      "username": username,
-      "password": password,
-    }
-    form_data = urllib.urlencode(form_fields)
-    instapaper_response = urlfetch.fetch(
-        url="https://www.instapaper.com/api/authenticate",
-        method=urlfetch.POST,
-        payload=form_data
-    )
-    return instapaper_response
-        
-class PageHandler(webapp.RequestHandler):
-    def get(self, path=None):
-        soup, status_code = self.get_page_body(path)
-        links = self.get_links(soup)
-        if status_code == 200 and links:
-            heading = self.get_heading(soup, path)
-            self.send_response(links, heading)
-        else:            
-            self.error(404)
-            render_to_response(self.response, '404.html', {})
-    
-    def get_page_body(self, path=None):
-        pass        
-    def get_links(self, soup):
-        pass
-    def get_heading(self, soup, path):
-        pass
-    def parse_story(self, story):
-        pass
-    def get_instapaper_login(self):
-        user = users.get_current_user()
-        instapaper_login = InstapaperLogin.gql("WHERE owner = :owner", owner=user)
-        return instapaper_login.get()
-        
-    def save_instapaper_login(self, username, password, articles):
-        instapaper_login = self.get_instapaper_login()
-        if not instapaper_login:
-            user = users.get_current_user()
-            if user:
-                instapaper_login = InstapaperLogin(
-                    username=username, 
-                    password=password,
-                    article_count=0,
-                    owner=users.get_current_user()
-                )
-                instapaper_login.put()
-        else:
-            instapaper_login.article_count = instapaper_login.article_count + len(articles)
-            instapaper_login.put()
-
-    def send_response(self, links, heading):
-        articles = []
-        for link in links:
-            article = self.parse_story(link)
-            if article:
-                articles.append(article)
-        user = users.get_current_user()
-        instapaper_login = self.get_instapaper_login()
-        if user and instapaper_login:
-            greeting = ("Welcome, %s! (<a href=\"%s\">sign out</a>)" %
-                        (user.nickname(), users.create_logout_url("/")))
-            username = instapaper_login.username
-            password = instapaper_login.password
-        else:
-            greeting = ("<a href=\"%s\">Sign in or register</a>." %
-                        users.create_login_url("/"))
-            username = ""
-            password = ""
-
-        self.response.out.write("<html><body>%s</body></html>" % greeting)        
-
-        render_to_response(self.response, 'list.html', {
-            'heading': heading, 
-            'articles': articles, 
-            'greeting': greeting,
-            'username': username,
-            'password': password
-        })
-        
-    def post(self):
-        articles = self.request.get_all("articles")
-        instapaper_login = self.get_instapaper_login()
-        if instapaper_login:
-            username = instapaper_login.username
-            password = instapaper_login.password
-        else:
-            username = self.request.get('username')
-            password = self.request.get('password')
-        response = validate_instapaper_account(username, password)
-        if response.status_code == 200:
-            self.save_instapaper_login(username, password, articles)
-            for url in articles:
-               taskqueue.add(
-                   url='/load-worker-dfsgylsdfgkjdfhlgjkdfdfgjfdslg', 
-                   params={'url': url, 'username': username, 'password': password}
-               )
-            self.response.out.write("Sent %d articles to instapaper <br/><a href='/'>Back to homepage</a>" % len(articles))
-        else:
-            self.response.out.write("Instapaper login failed, check your details.<br/><a href='/'>Back to homepage</a>")                
-
-class NYTimesTodaysPaperHandler(PageHandler):
-    def get_page_body(self, path):
-        response = urlfetch.fetch(
-            url='http://www.nytimes.com/pages/todayspaper/index.html'
-        )
-        soup = BeautifulSoup.BeautifulSoup(response.content)
-        status_code = response.status_code
-        return soup, status_code      
-
-    def get_links(self, soup):
-        return soup.findAll('div', {'class': re.compile('story$|story headline')})
-
-    def get_heading(self, soup, path):
-        return soup.findAll('div', {'id':'columnistNameHdrInfo'})[0].h3.string.replace('\n',' ')
-
-    def parse_story(self, story):
-        link = story.a
-        linktext = link.string
-        url = link['href']
-        if story and linktext:
-            try:
-                #works for most things in the main block
-                byline = link.nextSibling.nextSibling.string.strip()
-            except AttributeError:
-                try:
-                    #works for the front page block
-                    byline = story.find('div', {'class':'byline'}).string
-                except AttributeError:
-                    byline = ""
-            if byline:
-                byline = self.trim_by(byline)
-            return {
-                'url': url,
-                'byline': byline,
-                'linktext': linktext,
-            }
-
-    def trim_by(self, string):
-        if string.startswith('By'):
-            string = string[3:]
-        return string
-       
-class BreakfastPoliticsHandler(PageHandler):
-    def get_page_body(self, path):
-        response = urlfetch.fetch(
-            url='http://www.breakfastpolitics.com'
-        )
-        soup = BeautifulSoup.BeautifulSoup(response.content)
-        status_code = response.status_code
-        return soup, status_code  
-
-    def get_links(self, soup):
-        return soup.findAll('div', {'class':'entry-content'})[0].findAll('a')
-
-    def get_heading(self, soup, path):
-        return "Breakfast Politics for " + soup.findAll('h2', {'class':'date-header'})[0].string
-
-    def parse_story(self, story):
-        if story.string:
-            linktext = self.trim_commas(story.string)
-            url = story['href']
-            byline = unicode(self.trim_commas(story.nextSibling)).strip()
-            return {
-                'url': url,
-                'byline': byline,
-                'linktext': linktext,
-            }
-
-    def trim_commas(self, string):
-        if string != None:
-            if string.startswith(','):
-                string = string[2:]
-            if string.endswith(','):
-                string = string[:-1]
-            return string
-        else:
-            return string
-
-class GuardianHandler(PageHandler):
-    def get_page_body(self, path):
-        sunday = datetime.datetime.now().weekday() == 6
-        paper = "theobserver" if sunday else "theguardian"
-
-        if path:
-            url='http://www.guardian.co.uk/%s/%s' % (paper, path)
-        else:
-            url='http://www.guardian.co.uk/%s' % (paper)
-        response = urlfetch.fetch(
-            url=url
-        )
-        soup = BeautifulSoup.BeautifulSoup(response.content)
-        status_code = response.status_code
-        return soup, status_code   
-
-    def get_links(self, soup):
-        li_list = soup.findAll('li',{'class':'normal'})
-        links = []
-        for li in li_list:
-            if li and li.h3 and li.h3.a:
-                links.append(li.h3.a)
-        return links
-
-    def get_heading(self, soup, path):
-        sunday = datetime.datetime.now().weekday() == 6
-        paper = "The Observer" if sunday else "The Guardian"
-        if path:
-            heading = "%s %s: %s" % (paper, path.title(), soup.findAll('h2')[3].string)
-        else:
-            heading = "%s %s" % (paper, soup.findAll('h2')[3].string)
-        return heading
-
-    def parse_story(self, story):
-        linktext = story.string
-        url = story['href']
-        byline = ""
-        return {
-            'url': url,
-            'byline': byline,
-            'linktext': linktext,
-        }
-    
-class DeliciousHandler(PageHandler):
-    def get_page_body(self, path):
-        if not path:
-            path = "popular"
-        response = urlfetch.fetch(
-            url='http://feeds.delicious.com/v2/rss/%s?count=50' % path
-        )
-        soup = BeautifulSoup.BeautifulStoneSoup(response.content)
-        status_code = response.status_code
-        return soup, status_code
-
-    def get_links(self, soup):
-        return soup.findAll('item')
-
-    def get_heading(self, soup, path):
-        return "Delicious: " + soup.findAll('description')[0].string
-
-    def parse_story(self, story):
-        linktext = story.title.string
-        url = story.link.string
-        byline = story.find('dc:creator').string
-        return {
-            'url': url,
-            'byline': byline,
-            'linktext': linktext,
-        }
-        
 class LoadWorkerHandler(webapp.RequestHandler):
     def post(self):
         article_url = self.request.get('url')
@@ -276,7 +24,7 @@ class LoadWorkerHandler(webapp.RequestHandler):
           "url": article_url,
           "auto-title": "1"
         }
-        logging.error('%s, %s' % (self.request.get('username'), self.request.get('password')))
+        logging.error('submiting instapaper: %s, %s' % (self.request.get('username'), self.request.get('password')))
         form_data = urllib.urlencode(form_fields)
         instapaper_response = urlfetch.fetch(
             url= "https://www.instapaper.com/api/add",
@@ -284,11 +32,6 @@ class LoadWorkerHandler(webapp.RequestHandler):
             payload= form_data
         )
         logging.info("Lodged %s with instapaper. Reponse = %d" % (article_url, instapaper_response.status_code,))
-
-class InstapaperValidationHandler(webapp.RequestHandler):
-    def post(self):
-        instapaper_response = validate_instapaper_account(self.request.get('username'),self.request.get('password'))
-        return self.response.out.write("%d" % (instapaper_response.status_code,))
         
 class IndexHandler(webapp.RequestHandler):
     def get(self):        
@@ -297,13 +40,13 @@ class IndexHandler(webapp.RequestHandler):
 
 def main():
     application = webapp.WSGIApplication([
-        ('/breakfast', BreakfastPoliticsHandler),
-        ('/nytimes', NYTimesTodaysPaperHandler),
-        ('/guardian/(.*)', GuardianHandler),
-        ('/guardian', GuardianHandler),
-        ('/validate', InstapaperValidationHandler),
-        ('/delicious', DeliciousHandler),
-        ('/delicious/(.*)', DeliciousHandler),
+        ('/breakfast', sitehandlers.BreakfastPoliticsHandler),
+        ('/nytimes', sitehandlers.NYTimesTodaysPaperHandler),
+        ('/guardian/(.*)', sitehandlers.GuardianHandler),
+        ('/guardian', sitehandlers.GuardianHandler),
+        ('/delicious', sitehandlers.DeliciousHandler),
+        ('/delicious/(.*)', sitehandlers.DeliciousHandler),
+        ('/validate', pagehandler.InstapaperValidationHandler),        
         ('/load-worker-dfsgylsdfgkjdfhlgjkdfdfgjfdslg', LoadWorkerHandler),
         ('/', IndexHandler), 
         ],
