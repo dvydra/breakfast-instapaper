@@ -18,9 +18,21 @@
 <p><a href="/guardian">Today's paper from the Guardian</a></p>
 <p><a href="/nytimes">Today's paper from the New York Times</a></p>
 <p><a href="/breakfast">Breakfast Politics (Australian newspaper editorial summary, M-F)</a></p>
+<p><a href="/theage">Today's paper from The Age, Melbourne</a></p>
 <p><a href="/delicious/popular">Delicious popular links</a> (also try any other path, eg <a href="/delicious/tag/appengine">/delicious/tag/appengine</a>)</p>
 <hr/>
+<h2>Account utilities:</h2>
+<p>When you are logged into this site using your google account, we will save your instapaper login details so that you don't have to keep re-entering them. We don't store your google account details.</p>
+<p>If you would like to remove the information we have saved (instapaper account name, password), click the button below.</p>
+<p>You are <span style="color:red;">{% if not logged_in %}not {%endif%}logged into your google account</span>{%if logged_in %} (<a href="{{logout_url}}">sign out</a>){%endif%}</p>
+<p>We have <span style="color:red;">{% if not details_saved %}not{%endif%} saved your instapaper login</span></p>
+{% if details_saved %}
+<p><form action="/delete" method="post"><input type="submit" value="Remove your details"></form></p>
+{%endif%}
+
+<div>
+<hr />
 <p><small>a useful thing by <a href="http://twitter.com/dvydra">@dvydra</a></small></p>
-<p><small>also check out <a href="http://random-guardian.appspot.com">The Random Guardian</a></p>
+<p><small>also check out <a href="http://random-guardian.appspot.com">The Random Guardian</a></p></div>
 </body>
 </html>

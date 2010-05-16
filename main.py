@@ -31,22 +31,52 @@ class LoadWorkerHandler(webapp.RequestHandler):
             payload= form_data
         )
         logging.info("Lodged %s with instapaper. Reponse = %d" % (article_url, instapaper_response.status_code,))
-        
+
+class DeleteAccountHandler(webapp.RequestHandler):
+    def post(self):
+        user = users.get_current_user()
+        if user: 
+            instapaper_login = InstapaperLogin.gql("WHERE owner = :owner", owner=user).get()
+            if instapaper_login:
+                username = instapaper_login.owner.email()
+                instapaper_login.delete()
+                message = "Removed all information for the google account: %s" % username
+            else:
+                message = "I don't have any account details stored for this google account."
+        else:
+            message = "You are not logged into your google account."
+
+        path = os.path.join(os.path.dirname(__file__), 'message.html')
+        self.response.out.write(template.render(path, {"message": message}))
+
 class IndexHandler(webapp.RequestHandler):
-    def get(self):        
+    def get(self):
+        logged_in = False
+        details_saved = False
+        user = users.get_current_user()
+        if user: 
+            logged_in = True
+            instapaper_login = InstapaperLogin.gql("WHERE owner = :owner", owner=user).get()
+            if instapaper_login:
+                details_saved = True
+        
         path = os.path.join(os.path.dirname(__file__), 'index.html')
-        self.response.out.write(template.render(path, {}))
+        self.response.out.write(template.render(path, {
+            'logged_in': logged_in, 'details_saved': details_saved, 'logout_url': users.create_logout_url("/")
+        }))
 
 def main():
     application = webapp.WSGIApplication([
         ('/breakfast', sitehandlers.BreakfastPoliticsHandler),
         ('/nytimes', sitehandlers.NYTimesTodaysPaperHandler),
+        ('/theage', sitehandlers.TheAgeTodaysPaperHandler),
         ('/guardian/(.*)', sitehandlers.GuardianHandler),
         ('/guardian', sitehandlers.GuardianHandler),
         ('/delicious', sitehandlers.DeliciousHandler),
         ('/delicious/(.*)', sitehandlers.DeliciousHandler),
         ('/validate', pagehandler.InstapaperValidationHandler),        
         ('/load-worker-dfsgylsdfgkjdfhlgjkdfdfgjfdslg', LoadWorkerHandler),
+        ('/delete', DeleteAccountHandler),
         ('/', IndexHandler), 
         ],
         debug=True)

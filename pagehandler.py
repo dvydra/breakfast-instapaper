@@ -66,14 +66,19 @@ class PageHandler(webapp.RequestHandler):
                 
         user = users.get_current_user()
         instapaper_login = self.get_instapaper_login()
-        if user and instapaper_login:
-            greeting = ("Welcome, %s! (<a href=\"%s\">sign out</a>)" %
-                        (user.nickname(), users.create_logout_url("/")))
+        if user and not instapaper_login:
+            greeting = ("You are logged in with your google account. Your instapaper login will be saved. (<a href=\"%s\">sign out</a>)" %
+                        (users.create_logout_url("/")))       
+            username = ""
+            password = ""
+        elif user and instapaper_login:
+            greeting = ("You are logged in with your google account. Your instapaper login will be saved. (<a href=\"%s\">sign out</a>)" %
+                        (users.create_logout_url("/")))
             username = instapaper_login.username
             password = instapaper_login.password
         else:
             greeting = ("<a href=\"%s\">Sign in with your google account to save your instapaper details</a>." %
-                        users.create_login_url("/"))
+                        users.create_login_url(self.request.url))
             username = ""
             password = ""
 
@@ -88,7 +93,7 @@ class PageHandler(webapp.RequestHandler):
     def post(self):
         articles = self.request.get_all("articles")
         if not articles:
-            return self.response.out.write("You didn't select any articles.<br/><a href='/'>Back to homepage</a>")                
+            return self.response.out.write("You didn't select any articles.<br/><a href='/'>Back to homepage</a>")
             
         instapaper_login = self.get_instapaper_login()
         username = self.request.get('username')

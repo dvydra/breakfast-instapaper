@@ -125,7 +125,35 @@ class GuardianHandler(PageHandler):
             'byline': byline,
             'linktext': linktext,
         }
-    
+
+class TheAgeTodaysPaperHandler(PageHandler):
+    def get_page_body(self, path):
+        response = urlfetch.fetch(
+            url='http://www.theage.com.au/todays-paper'
+        )
+        soup = BeautifulSoup.BeautifulSoup(response.content)
+        status_code = response.status_code
+        return soup, status_code  
+
+    def get_links(self, soup):
+        return soup.findAll('div', {'class':'cN-storyHeadlineLead cfix'})
+
+    def get_heading(self, soup, path):
+        return "The Age for " + soup.findAll('h3', {'class':'cN-headerRich'})[0].string
+
+    def parse_story(self, story):
+        linktext = story.h3.a.string
+        url = story.h3.a['href']
+        if story.cite:
+            byline = story.cite.string.title()
+        else:
+            byline = ""
+        return {
+            'url': url,
+            'byline': byline,
+            'linktext': linktext,
+        }
+
 class DeliciousHandler(PageHandler):
     def get_page_body(self, path):
         if not path:
