@@ -15,10 +15,19 @@ class NYTimesTodaysPaperHandler(PageHandler):
         return soup, status_code      
 
     def get_links(self, soup):
-        return soup.findAll('div', {'class': re.compile('story$|story headline')})
+        #return soup.findAll('div', {'class': re.compile('story$|story headline')})
+        links = []
+        headlines = soup.findAll('div',{'class':'story'})
+        for link in headlines:
+            links.extend(link.findAll('h3'))
+        groups = soup.findAll('ul', {'class': re.compile('headlinesOnly .*')})
+        for el in groups:
+            links.extend(el.findAll('h6'))
+        
+        return links
 
     def get_heading(self, soup, path):
-        return soup.findAll('div', {'id':'columnistNameHdrInfo'})[0].h3.string.replace('\n',' ')
+        return soup.findAll('h3', {'class':'sectionHeader'})[0].string.replace('\n',' ')
 
     def parse_story(self, story):
         link = story.a
@@ -27,11 +36,11 @@ class NYTimesTodaysPaperHandler(PageHandler):
         if story and linktext:
             try:
                 #works for most things in the main block
-                byline = link.nextSibling.nextSibling.string.strip()
+                byline = link.nextSibling.nextSibling.nextSibling.nextSibling.string.strip()
             except AttributeError:
                 try:
                     #works for the front page block
-                    byline = story.find('div', {'class':'byline'}).string
+                    byline = story.nextSibling.nextSibling.string.strip()
                 except AttributeError:
                     byline = ""
             if byline:
