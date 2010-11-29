@@ -4,10 +4,7 @@
 <html lang="en">
 <head>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-	<title>index</title>
-	<meta name="generator" content="TextMate http://macromates.com/">
-	<meta name="author" content="Daniel Vydra">
-	<!-- Date: 2010-04-27 -->
+	<title>Breakfast Instapaper! | Instapaper bulk submitter</title>
 </head>
 <body>
 <h1>Instapaper bulk submitter</h1>
@@ -21,17 +18,6 @@
 <p><a href="/theage">Today's paper from The Age, Melbourne</a></p>
 <p><a href="/delicious/popular">Delicious popular links</a> (also try any other path, eg <a href="/delicious/tag/appengine">/delicious/tag/appengine</a>)</p>
 <hr/>
-<h2>Account utilities:</h2>
-<p>When you are logged into this site using your google account, we will save your instapaper login details so that you don't have to keep re-entering them. We don't store your google account details.</p>
-<p>If you would like to remove the information we have saved (instapaper account name, password), click the button below.</p>
-<p>You are <span style="color:red;">{% if not logged_in %}not {%endif%}logged into your google account</span>{%if logged_in %} (<a href="{{logout_url}}">sign out</a>){%endif%}</p>
-<p>We have <span style="color:red;">{% if not details_saved %}not{%endif%} saved your instapaper login</span></p>
-{% if details_saved %}
-<p><form action="/delete" method="post"><input type="submit" value="Remove your details"></form></p>
-{%endif%}
-
-<div>
-<hr />
 <p><small>a useful thing by <a href="http://twitter.com/dvydra">@dvydra</a></small></p>
 <p><small>also check out <a href="http://random-guardian.appspot.com">The Random Guardian</a></p></div>
 </body>

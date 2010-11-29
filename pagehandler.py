@@ -85,7 +85,7 @@ class PageHandler(webapp.RequestHandler):
         self.render_to_response(self.response, 'list.html', {
             'heading': heading, 
             'articles': articles, 
-            'greeting': greeting,
+            #'greeting': greeting,
             'username': username,
             'password': password
         })
