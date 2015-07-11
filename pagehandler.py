@@ -19,12 +19,12 @@ class PageHandler(webapp.RequestHandler):
         if status_code == 200 and links:
             heading = self.get_heading(soup, path)
             self.send_response(links, heading)
-        else:            
+        else:
             self.error(404)
             self.render_to_response(self.response, '404.html', {})
-    
+
     def get_page_body(self, path=None):
-        pass        
+        pass
     def get_links(self, soup):
         pass
     def get_heading(self, soup, path):
@@ -43,7 +43,7 @@ class PageHandler(webapp.RequestHandler):
             user = users.get_current_user()
             if user:
                 instapaper_login = InstapaperLogin(
-                    username=username, 
+                    username=username,
                     password=password,
                     article_count=0,
                     owner=users.get_current_user()
@@ -63,12 +63,12 @@ class PageHandler(webapp.RequestHandler):
             article = self.parse_story(link)
             if article:
                 articles.append(article)
-                
+
         user = users.get_current_user()
         instapaper_login = self.get_instapaper_login()
         if user and not instapaper_login:
             greeting = ("You are logged in with your google account. Your instapaper login will be saved. (<a href=\"%s\">sign out</a>)" %
-                        (users.create_logout_url("/")))       
+                        (users.create_logout_url("/")))
             username = ""
             password = ""
         elif user and instapaper_login:
@@ -83,33 +83,33 @@ class PageHandler(webapp.RequestHandler):
             password = ""
 
         self.render_to_response(self.response, 'list.html', {
-            'heading': heading, 
-            'articles': articles, 
+            'heading': heading,
+            'articles': articles,
             #'greeting': greeting,
             'username': username,
             'password': password
         })
-        
+
     def post(self):
         articles = self.request.get_all("articles")
         if not articles:
             return self.response.out.write("You didn't select any articles.<br/><a href='/'>Back to homepage</a>")
-            
+
         instapaper_login = self.get_instapaper_login()
         username = self.request.get('username')
         password = self.request.get('password')
         response = InstapaperValidationHandler().validate_instapaper_account(username, password)
-        
+
         if response.status_code == 200:
             self.save_instapaper_login(username, password, articles)
             for url in articles:
                taskqueue.add(
-                   url='/load-worker-dfsgylsdfgkjdfhlgjkdfdfgjfdslg', 
+                   url='/load-worker-dfsgylsdfgkjdfhlgjkdfdfgjfdslg',
                    params={'url': url, 'username': username, 'password': password}
                )
             self.response.out.write("Sent %d articles to instapaper <br/><a href='/'>Back to homepage</a>" % len(articles))
         else:
-            self.response.out.write("Instapaper login failed, check your details.<br/><a href='/'>Back to homepage</a>")                
+            self.response.out.write("Instapaper login failed, check your details.<br/><a href='/'>Back to homepage</a>")
 
     def render_to_response(self, response, template_path, context):
         path = os.path.join(os.path.dirname(__file__), template_path)
@@ -131,4 +131,4 @@ class InstapaperValidationHandler(webapp.RequestHandler):
             method=urlfetch.POST,
             payload=form_data
         )
-        return instapaper_response    
+        return instapaper_response
