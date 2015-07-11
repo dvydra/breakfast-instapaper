@@ -35,7 +35,7 @@ class LoadWorkerHandler(webapp.RequestHandler):
 class DeleteAccountHandler(webapp.RequestHandler):
     def post(self):
         user = users.get_current_user()
-        if user: 
+        if user:
             instapaper_login = InstapaperLogin.gql("WHERE owner = :owner", owner=user).get()
             if instapaper_login:
                 username = instapaper_login.owner.email()
@@ -54,12 +54,12 @@ class IndexHandler(webapp.RequestHandler):
         logged_in = False
         details_saved = False
         user = users.get_current_user()
-        if user: 
+        if user:
             logged_in = True
             instapaper_login = InstapaperLogin.gql("WHERE owner = :owner", owner=user).get()
             if instapaper_login:
                 details_saved = True
-        
+
         path = os.path.join(os.path.dirname(__file__), 'index.html')
         self.response.out.write(template.render(path, {
             'logged_in': logged_in, 'details_saved': details_saved, 'logout_url': users.create_logout_url("/")
@@ -67,17 +67,16 @@ class IndexHandler(webapp.RequestHandler):
 
 def main():
     application = webapp.WSGIApplication([
-        ('/breakfast', sitehandlers.BreakfastPoliticsHandler),
         ('/nytimes', sitehandlers.NYTimesTodaysPaperHandler),
         ('/theage', sitehandlers.TheAgeTodaysPaperHandler),
         ('/guardian/(.*)', sitehandlers.GuardianHandler),
         ('/guardian', sitehandlers.GuardianHandler),
         ('/delicious', sitehandlers.DeliciousHandler),
         ('/delicious/(.*)', sitehandlers.DeliciousHandler),
-        ('/validate', pagehandler.InstapaperValidationHandler),        
+        ('/validate', pagehandler.InstapaperValidationHandler),
         ('/load-worker-dfsgylsdfgkjdfhlgjkdfdfgjfdslg', LoadWorkerHandler),
         ('/delete', DeleteAccountHandler),
-        ('/', IndexHandler), 
+        ('/', IndexHandler),
         ],
         debug=True)
     util.run_wsgi_app(application)

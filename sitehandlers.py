@@ -12,7 +12,7 @@ class NYTimesTodaysPaperHandler(PageHandler):
         )
         soup = BeautifulSoup.BeautifulSoup(response.content)
         status_code = response.status_code
-        return soup, status_code      
+        return soup, status_code
 
     def get_links(self, soup):
         #return soup.findAll('div', {'class': re.compile('story$|story headline')})
@@ -23,7 +23,7 @@ class NYTimesTodaysPaperHandler(PageHandler):
         groups = soup.findAll('ul', {'class': re.compile('headlinesOnly .*')})
         for el in groups:
             links.extend(el.findAll('h6'))
-        
+
         return links
 
     def get_heading(self, soup, path):
@@ -55,42 +55,6 @@ class NYTimesTodaysPaperHandler(PageHandler):
         if string.startswith('By'):
             string = string[3:]
         return string
-       
-class BreakfastPoliticsHandler(PageHandler):
-    def get_page_body(self, path):
-        response = urlfetch.fetch(
-            url='http://www.breakfastpolitics.com'
-        )
-        soup = BeautifulSoup.BeautifulSoup(response.content)
-        status_code = response.status_code
-        return soup, status_code  
-
-    def get_links(self, soup):
-        return soup.findAll('div', {'class':'entry-content'})[0].findAll('a')
-
-    def get_heading(self, soup, path):
-        return "Breakfast Politics for " + soup.findAll('h2', {'class':'date-header'})[0].string
-
-    def parse_story(self, story):
-        if story.string:
-            linktext = self.trim_commas(story.string)
-            url = story['href']
-            byline = unicode(self.trim_commas(story.nextSibling)).strip()
-            return {
-                'url': url,
-                'byline': byline,
-                'linktext': linktext,
-            }
-
-    def trim_commas(self, string):
-        if string != None:
-            if string.startswith(','):
-                string = string[2:]
-            if string.endswith(','):
-                string = string[:-1]
-            return string
-        else:
-            return string
 
 class GuardianHandler(PageHandler):
     def get_page_body(self, path):
@@ -106,7 +70,7 @@ class GuardianHandler(PageHandler):
         )
         soup = BeautifulSoup.BeautifulSoup(response.content)
         status_code = response.status_code
-        return soup, status_code   
+        return soup, status_code
 
     def get_links(self, soup):
         li_list = soup.findAll('li',{'class':'normal'})
@@ -142,7 +106,7 @@ class TheAgeTodaysPaperHandler(PageHandler):
         )
         soup = BeautifulSoup.BeautifulSoup(response.content)
         status_code = response.status_code
-        return soup, status_code  
+        return soup, status_code
 
     def get_links(self, soup):
         return soup.findAll('div', {'class':'cN-storyHeadlineLead cfix'})
